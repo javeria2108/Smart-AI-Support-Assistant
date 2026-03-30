@@ -1,11 +1,23 @@
 from fastapi import FastAPI, HTTPException, UploadFile, File, Form
 from typing import Optional
+from pathlib import Path
+import logging
+from dotenv import load_dotenv
 
 from app.schemas import IngestResponse, AskRequest, AskResponse
 from app.store import store
 from app.file_extractors import extract_text_from_upload, FileExtractionError
-from app.qa_engine import answer_from_context
+from app.qa_engine import answer_from_context, FALLBACK_ANSWER, best_context_snippet
+from app.llm_service import generate_answer_with_prompt
 
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
+)
+logger = logging.getLogger(__name__)
+
+env_path = Path(__file__).resolve().parents[1] / ".env.local"
+load_dotenv(env_path)
 app = FastAPI(title="Smart AI Support Assistant API")
 
 
@@ -43,9 +55,19 @@ async def ingest_content(
 @app.post("/ask", response_model=AskResponse)
 def ask_question(payload: AskRequest):
     """Answer user questions using only ingested context."""
+    logger.info("/ask received | question_chars=%d", len(payload.question))
     context = store.get_all_text()
-    answer = answer_from_context(payload.question, context)
-    return AskResponse(answer=answer)
+    rule_answer = answer_from_context(payload.question, context)
+
+    if rule_answer == FALLBACK_ANSWER:
+        logger.info("/ask retrieval_result=fallback")
+        return AskResponse(answer=FALLBACK_ANSWER)
+
+    snippet = best_context_snippet(payload.question, context)
+    logger.info("/ask retrieval_result=hit | snippet_chars=%d", len(snippet))
+    final_answer = generate_answer_with_prompt(payload.question, snippet)
+    logger.info("/ask final_answer_chars=%d", len(final_answer))
+    return AskResponse(answer=final_answer)
 
 
 @app.get("/health")

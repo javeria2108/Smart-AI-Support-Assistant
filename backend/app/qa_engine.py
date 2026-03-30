@@ -13,13 +13,13 @@ def _split_candidates(context: str) -> list[str]:
     return [part.strip() for part in parts if part.strip()]
 
 
-def answer_from_context(question: str, context: str) -> str:
+def best_context_snippet(question: str, context: str) -> str:
     if not context.strip():
-        return FALLBACK_ANSWER
+        return ""
 
     question_tokens = _tokenize(question)
     if not question_tokens:
-        return FALLBACK_ANSWER
+        return ""
 
     best_score = 0
     best_candidate = ""
@@ -32,6 +32,13 @@ def answer_from_context(question: str, context: str) -> str:
             best_candidate = candidate
 
     if best_score == 0:
-        return FALLBACK_ANSWER
+        return ""
 
     return best_candidate
+
+
+def answer_from_context(question: str, context: str) -> str:
+    snippet = best_context_snippet(question, context)
+    if not snippet:
+        return FALLBACK_ANSWER
+    return snippet
