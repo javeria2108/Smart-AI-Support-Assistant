@@ -18,6 +18,8 @@ def generate_answer_with_prompt(question: str, context_snippet: str) -> str:
 
     system_prompt = (
         "You are a support assistant. Use ONLY the provided context.\n"
+        "If the context contains relevant information, answer from it directly and clearly.\n"
+        "Treat equivalent wording and synonyms as valid.\n"
         "If the answer is not present in context, reply exactly:\n"
         f"{FALLBACK_ANSWER}"
     )

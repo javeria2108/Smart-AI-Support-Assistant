@@ -7,7 +7,13 @@ from dotenv import load_dotenv
 from app.schemas import IngestResponse, AskRequest, AskResponse
 from app.store import store
 from app.file_extractors import extract_text_from_upload, FileExtractionError
-from app.qa_engine import answer_from_context, FALLBACK_ANSWER, best_context_snippet
+from app.qa_engine import (
+    FALLBACK_ANSWER,
+    build_context_for_llm,
+    get_top_context_chunks,
+    is_fallback_like,
+    fallback_answer_from_chunks,
+)
 from app.llm_service import generate_answer_with_prompt
 
 logging.basicConfig(
@@ -57,15 +63,19 @@ def ask_question(payload: AskRequest):
     """Answer user questions using only ingested context."""
     logger.info("/ask received | question_chars=%d", len(payload.question))
     context = store.get_all_text()
-    rule_answer = answer_from_context(payload.question, context)
 
-    if rule_answer == FALLBACK_ANSWER:
+    top_chunks = get_top_context_chunks(payload.question, context, top_k=12)
+    if not top_chunks:
         logger.info("/ask retrieval_result=fallback")
         return AskResponse(answer=FALLBACK_ANSWER)
 
-    snippet = best_context_snippet(payload.question, context)
-    logger.info("/ask retrieval_result=hit | snippet_chars=%d", len(snippet))
-    final_answer = generate_answer_with_prompt(payload.question, snippet)
+    llm_context = build_context_for_llm(payload.question, context, top_k=12, max_chars=12000)
+    logger.info("/ask retrieval_result=hit | context_chars=%d", len(llm_context))
+    final_answer = generate_answer_with_prompt(payload.question, llm_context)
+    if is_fallback_like(final_answer):
+        logger.warning("/ask llm_returned_fallback_like_despite_retrieval_hit | using_chunk_based_fallback")
+        return AskResponse(answer=fallback_answer_from_chunks(payload.question, top_chunks))
+
     logger.info("/ask final_answer_chars=%d", len(final_answer))
     return AskResponse(answer=final_answer)
 
