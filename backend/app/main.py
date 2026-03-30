@@ -3,6 +3,7 @@ from typing import Optional
 from pathlib import Path
 import logging
 from dotenv import load_dotenv
+from fastapi.middleware.cors import CORSMiddleware
 
 from app.schemas import IngestResponse, AskRequest, AskResponse
 from app.store import store
@@ -25,7 +26,16 @@ logger = logging.getLogger(__name__)
 env_path = Path(__file__).resolve().parents[1] / ".env.local"
 load_dotenv(env_path)
 app = FastAPI(title="Smart AI Support Assistant API")
-
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 @app.post("/ingest", response_model=IngestResponse)
 async def ingest_content(
