@@ -1,8 +1,10 @@
 from fastapi import FastAPI, HTTPException, UploadFile, File, Form
 from typing import Optional
-from app.file_extractors import extract_text_from_upload, FileExtractionError
-from app.schemas import IngestResponse
+
+from app.schemas import IngestResponse, AskRequest, AskResponse
 from app.store import store
+from app.file_extractors import extract_text_from_upload, FileExtractionError
+from app.qa_engine import answer_from_context
 
 app = FastAPI(title="Smart AI Support Assistant API")
 
@@ -12,7 +14,7 @@ async def ingest_content(
     text: Optional[str] = Form(default=None),
     file: Optional[UploadFile] = File(default=None),
 ):
-    """Ingest support content from pasted text or a .txt file into the in-memory knowledge store."""
+    """Ingest support content from pasted text or a .txt/.pdf file into the in-memory knowledge store."""
     collected_parts: list[str] = []
 
     if text and text.strip():
@@ -27,7 +29,7 @@ async def ingest_content(
             raise HTTPException(status_code=400, detail=str(exc))
 
     if not collected_parts:
-        raise HTTPException(status_code=400, detail="Provide non-empty text or a non-empty .txt file.")
+        raise HTTPException(status_code=400, detail="Provide non-empty text or a non-empty file.")
 
     merged_content = "\n\n".join(collected_parts)
     total = store.add_text(merged_content)
@@ -36,6 +38,14 @@ async def ingest_content(
         message="Content ingested successfully.",
         total_documents=total,
     )
+
+
+@app.post("/ask", response_model=AskResponse)
+def ask_question(payload: AskRequest):
+    """Answer user questions using only ingested context."""
+    context = store.get_all_text()
+    answer = answer_from_context(payload.question, context)
+    return AskResponse(answer=answer)
 
 
 @app.get("/health")
