@@ -53,7 +53,16 @@ export async function askQuestion(question: string): Promise<AskResponse> {
   });
 
   if (!response.ok) {
-    throw new Error("Failed to get answer.");
+    let message = "Failed to get answer.";
+    try {
+      const errorBody = await response.json();
+      if (typeof errorBody?.detail === "string") {
+        message = errorBody.detail;
+      }
+    } catch {
+      // ignore parse errors
+    }
+    throw new Error(message);
   }
 
   return (await response.json()) as AskResponse;

@@ -2,6 +2,7 @@
 
 import { FormEvent, useState } from "react";
 import { ingestContent } from "@/lib/api";
+import Link from "next/link";
 
 export default function IngestPage() {
   const [text, setText] = useState("");
@@ -49,6 +50,20 @@ export default function IngestPage() {
           Upload / Paste Content
         </h1>
 
+        <div className="mb-4 flex gap-2">
+          <Link
+            href="/"
+            className="rounded-md border border-zinc-700 px-3 py-2 text-sm hover:bg-zinc-900"
+          >
+            Home
+          </Link>
+          <Link
+            href="/chat"
+            className="rounded-md border border-zinc-700 px-3 py-2 text-sm hover:bg-zinc-900"
+          >
+            Chat
+          </Link>
+        </div>
         <form
           onSubmit={onSubmit}
           className="rounded-lg border border-zinc-800 bg-zinc-900 p-5"

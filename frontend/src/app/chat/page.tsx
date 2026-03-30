@@ -2,6 +2,7 @@
 
 import { FormEvent, useState } from "react";
 import { askQuestion } from "@/lib/api";
+import Link from "next/link";
 
 type Message = {
   role: "user" | "assistant";
@@ -33,8 +34,12 @@ export default function ChatPage() {
         ...current,
         { role: "assistant", text: data.answer },
       ]);
-    } catch {
-      setError("Could not get answer from backend.");
+    } catch (submitError) {
+      if (submitError instanceof Error) {
+        setError(submitError.message);
+      } else {
+        setError("Could not get answer from backend.");
+      }
     } finally {
       setIsLoading(false);
     }
@@ -47,6 +52,20 @@ export default function ChatPage() {
           Chat Assistant
         </h1>
 
+        <div className="mb-4 flex gap-2">
+          <Link
+            href="/"
+            className="rounded-md border border-zinc-700 px-3 py-2 text-sm hover:bg-zinc-900"
+          >
+            Home
+          </Link>
+          <Link
+            href="/ingest"
+            className="rounded-md border border-zinc-700 px-3 py-2 text-sm hover:bg-zinc-900"
+          >
+            Ingest
+          </Link>
+        </div>
         <section className="mb-4 flex min-h-[420px] flex-col gap-3 rounded-lg border border-zinc-800 bg-zinc-900 p-4">
           {messages.length === 0 ? (
             <p className="text-sm text-zinc-400">
