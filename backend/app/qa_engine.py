@@ -70,7 +70,6 @@ def get_top_context_chunks(question: str, context: str, top_k: int = 3) -> list[
     - Token overlap: primary relevance signal.
     - Coverage ratio: favors chunks covering more of the query terms.
     - Length bonus: prefers concise, answer-like chunks.
-    - Submission-intent bonus: boosts assignment/submission related chunks.
     """
     if not context.strip():
         return []
@@ -79,12 +78,8 @@ def get_top_context_chunks(question: str, context: str, top_k: int = 3) -> list[
     if not question_tokens:
         return []
 
-    question_lower = question.lower()
-    asks_submission = any(word in question_lower for word in ["submission", "submit", "requirement"])
-
     scored: list[tuple[float, str]] = []
     for candidate in _split_candidates(context):
-        candidate_lower = candidate.lower()
         candidate_tokens = _tokenize(candidate)
         overlap_count = len(question_tokens.intersection(candidate_tokens))
         if overlap_count == 0:
@@ -97,13 +92,6 @@ def get_top_context_chunks(question: str, context: str, top_k: int = 3) -> list[
         # Rule 2: small-to-medium chunks are often cleaner direct answers.
         if 40 <= len(candidate) <= 260:
             score += 0.5
-
-        # Rule 3: intent-aware boost for assignment/submission style questions.
-        if asks_submission and any(
-            keyword in candidate_lower
-            for keyword in ["submission", "submit", "requirement", "github", "loom", "repository", "video"]
-        ):
-            score += 2.0
 
         scored.append((score, candidate))
 
@@ -157,13 +145,6 @@ def is_fallback_like(answer: str) -> bool:
 def fallback_answer_from_chunks(question: str, top_chunks: list[str]) -> str:
     if not top_chunks:
         return FALLBACK_ANSWER
-
-    question_lower = question.lower()
-    asks_submission = any(word in question_lower for word in ["submission", "submit", "requirement"])
-
-    if asks_submission:
-        selected = top_chunks[:3]
-        return "Based on the provided content, submission requirements include: " + "; ".join(selected)
 
     selected = top_chunks[:2]
     return "Based on the provided content: " + " ".join(selected)
