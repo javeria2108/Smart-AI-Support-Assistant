@@ -2,6 +2,7 @@ from fastapi import FastAPI, HTTPException, UploadFile, File, Form
 from typing import Optional
 from pathlib import Path
 import logging
+import os
 from dotenv import load_dotenv
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -25,13 +26,50 @@ logger = logging.getLogger(__name__)
 
 env_path = Path(__file__).resolve().parents[1] / ".env.local"
 load_dotenv(env_path)
+
+
+def _normalize_origin(origin: str) -> str:
+    return origin.strip().rstrip("/")
+
+
+def _build_allowed_origins() -> list[str]:
+    origins: list[str] = [
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+    ]
+
+    cors_allow_origins = os.getenv("CORS_ALLOW_ORIGINS", "")
+    if cors_allow_origins.strip():
+        origins.extend(
+            _normalize_origin(item)
+            for item in cors_allow_origins.split(",")
+            if item.strip()
+        )
+
+    frontend_url = os.getenv("FRONTEND_URL", "")
+    if frontend_url.strip():
+        origins.append(_normalize_origin(frontend_url))
+
+    vercel_url = os.getenv("VERCEL_URL", "")
+    if vercel_url.strip():
+        cleaned_vercel = vercel_url.strip().replace("https://", "").replace("http://", "")
+        origins.append(f"https://{cleaned_vercel.rstrip('/')}")
+
+    unique_origins: list[str] = []
+    for origin in origins:
+        normalized = _normalize_origin(origin)
+        if normalized and normalized not in unique_origins:
+            unique_origins.append(normalized)
+
+    return unique_origins
+
+
+CORS_ALLOWED_ORIGINS = _build_allowed_origins()
+
 app = FastAPI(title="Smart AI Support Assistant API")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-    ],
+    allow_origins=CORS_ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
