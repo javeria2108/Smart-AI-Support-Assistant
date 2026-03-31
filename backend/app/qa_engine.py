@@ -64,6 +64,14 @@ def _split_candidates(context: str) -> list[str]:
 
 
 def get_top_context_chunks(question: str, context: str, top_k: int = 3) -> list[str]:
+    """Rank context chunks by lightweight lexical heuristics and return the top matches.
+
+    Scoring rules:
+    - Token overlap: primary relevance signal.
+    - Coverage ratio: favors chunks covering more of the query terms.
+    - Length bonus: prefers concise, answer-like chunks.
+    - Submission-intent bonus: boosts assignment/submission related chunks.
+    """
     if not context.strip():
         return []
 
@@ -82,12 +90,15 @@ def get_top_context_chunks(question: str, context: str, top_k: int = 3) -> list[
         if overlap_count == 0:
             continue
 
+        # Rule 1: token overlap is the strongest retrieval signal.
         coverage = overlap_count / max(len(question_tokens), 1)
         score = (overlap_count * 2.0) + coverage
 
+        # Rule 2: small-to-medium chunks are often cleaner direct answers.
         if 40 <= len(candidate) <= 260:
             score += 0.5
 
+        # Rule 3: intent-aware boost for assignment/submission style questions.
         if asks_submission and any(
             keyword in candidate_lower
             for keyword in ["submission", "submit", "requirement", "github", "loom", "repository", "video"]

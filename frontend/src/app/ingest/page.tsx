@@ -2,9 +2,10 @@
 
 import { FormEvent, useState } from "react";
 import { ingestContent } from "@/lib/api";
-import Link from "next/link";
 import { FileUp, MessageCircle, Home, Send, FileText } from "lucide-react";
 import LoadingSpinner from "@/components/ui/loading-spinner";
+import PageHeader from "@/components/ui/page-header";
+import StatusBanner from "@/components/ui/status-banner";
 
 export default function IngestPage() {
   const [text, setText] = useState("");
@@ -48,29 +49,14 @@ export default function IngestPage() {
   return (
     <main className="min-h-screen bg-zinc-950 text-zinc-100">
       <div className="mx-auto w-full max-w-3xl px-4 py-6 sm:px-6 sm:py-10">
-        <div className="mb-6 flex items-center justify-between">
-          <h1 className="text-2xl font-semibold text-green-400">
-            Upload / Paste Content
-          </h1>
-          <FileUp className="h-6 w-6 text-green-400/60" />
-        </div>
-
-        <div className="mb-6 flex flex-wrap gap-2">
-          <Link
-            href="/"
-            className="inline-flex items-center gap-2 rounded-md border border-zinc-700 px-3 py-2 text-sm transition-colors hover:border-green-500 hover:bg-zinc-900 hover:text-green-400"
-          >
-            <Home className="h-4 w-4" />
-            Home
-          </Link>
-          <Link
-            href="/chat"
-            className="inline-flex items-center gap-2 rounded-md border border-zinc-700 px-3 py-2 text-sm transition-colors hover:border-green-500 hover:bg-zinc-900 hover:text-green-400"
-          >
-            <MessageCircle className="h-4 w-4" />
-            Chat
-          </Link>
-        </div>
+        <PageHeader
+          title="Upload / Paste Content"
+          TitleIcon={FileUp}
+          navItems={[
+            { href: "/", label: "Home", icon: Home },
+            { href: "/chat", label: "Chat", icon: MessageCircle },
+          ]}
+        />
         <form
           onSubmit={onSubmit}
           className="rounded-lg border border-zinc-800 bg-zinc-900/50 p-6"
@@ -126,15 +112,11 @@ export default function IngestPage() {
         </form>
 
         {result && (
-          <p className="mt-6 rounded-lg border border-green-700/50 bg-green-950/30 px-4 py-3 text-sm text-green-300">
-            {result}
-          </p>
+          <StatusBanner type="success" message={result} />
         )}
 
         {error && (
-          <p className="mt-6 rounded-lg border border-red-700/50 bg-red-950/30 px-4 py-3 text-sm text-red-300">
-            {error}
-          </p>
+          <StatusBanner type="error" message={error} />
         )}
       </div>
     </main>

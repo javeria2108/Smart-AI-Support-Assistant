@@ -19,7 +19,10 @@ async def extract_text_from_upload(file: UploadFile) -> str:
         return raw_bytes.decode("utf-8", errors="ignore").strip()
 
     if content_type == "application/pdf" or filename.endswith(".pdf"):
-        reader = PdfReader(BytesIO(raw_bytes))
+        try:
+            reader = PdfReader(BytesIO(raw_bytes))
+        except Exception as exc:
+            raise FileExtractionError("Invalid or unreadable PDF file.") from exc
         pages_text = [page.extract_text() or "" for page in reader.pages]
         combined = "\n".join(pages_text).strip()
         if not combined:

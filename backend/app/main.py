@@ -1,4 +1,6 @@
-from fastapi import FastAPI, HTTPException, UploadFile, File, Form
+from fastapi import FastAPI, HTTPException, UploadFile, File, Form, Request
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
 from typing import Optional
 from pathlib import Path
 import logging
@@ -6,7 +8,7 @@ import os
 from dotenv import load_dotenv
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.schemas import IngestResponse, AskRequest, AskResponse
+from app.schemas import IngestResponse, AskRequest, AskResponse, ErrorResponse
 from app.store import store
 from app.file_extractors import extract_text_from_upload, FileExtractionError
 from app.qa_engine import (
@@ -75,7 +77,37 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-@app.post("/ingest", response_model=IngestResponse)
+
+@app.exception_handler(FileExtractionError)
+async def file_extraction_error_handler(_: Request, exc: FileExtractionError):
+    return JSONResponse(status_code=400, content={"detail": str(exc)})
+
+
+@app.exception_handler(RequestValidationError)
+async def request_validation_error_handler(_: Request, exc: RequestValidationError):
+    first_error = exc.errors()[0] if exc.errors() else {"msg": "Invalid request body."}
+    return JSONResponse(status_code=422, content={"detail": first_error.get("msg", "Invalid request body.")})
+
+
+@app.exception_handler(Exception)
+async def unexpected_error_handler(_: Request, exc: Exception):
+    logger.exception("Unhandled server error", exc_info=exc)
+    return JSONResponse(status_code=500, content={"detail": "Internal server error."})
+
+
+@app.get("/")
+def root_status():
+    return {
+        "service": "Smart AI Support Assistant API",
+        "status": "ok",
+        "docs": "/docs",
+    }
+
+@app.post(
+    "/ingest",
+    response_model=IngestResponse,
+    responses={400: {"model": ErrorResponse}, 422: {"model": ErrorResponse}, 500: {"model": ErrorResponse}},
+)
 async def ingest_content(
     text: Optional[str] = Form(default=None),
     file: Optional[UploadFile] = File(default=None),
@@ -87,12 +119,9 @@ async def ingest_content(
         collected_parts.append(text.strip())
 
     if file is not None:
-        try:
-            extracted_text = await extract_text_from_upload(file)
-            if extracted_text:
-                collected_parts.append(extracted_text)
-        except FileExtractionError as exc:
-            raise HTTPException(status_code=400, detail=str(exc))
+        extracted_text = await extract_text_from_upload(file)
+        if extracted_text:
+            collected_parts.append(extracted_text)
 
     if not collected_parts:
         raise HTTPException(status_code=400, detail="Provide non-empty text or a non-empty file.")
@@ -106,23 +135,31 @@ async def ingest_content(
     )
 
 
-@app.post("/ask", response_model=AskResponse)
+@app.post(
+    "/ask",
+    response_model=AskResponse,
+    responses={400: {"model": ErrorResponse}, 422: {"model": ErrorResponse}, 500: {"model": ErrorResponse}},
+)
 def ask_question(payload: AskRequest):
     """Answer user questions using only ingested context."""
-    logger.info("/ask received | question_chars=%d", len(payload.question))
+    question = payload.question.strip()
+    if not question:
+        raise HTTPException(status_code=400, detail="Question must not be empty.")
+
+    logger.info("/ask received | question_chars=%d", len(question))
     context = store.get_all_text()
 
-    top_chunks = get_top_context_chunks(payload.question, context, top_k=12)
+    top_chunks = get_top_context_chunks(question, context, top_k=12)
     if not top_chunks:
         logger.info("/ask retrieval_result=fallback")
         return AskResponse(answer=FALLBACK_ANSWER)
 
-    llm_context = build_context_for_llm(payload.question, context, top_k=12, max_chars=12000)
+    llm_context = build_context_for_llm(question, context, top_k=12, max_chars=12000)
     logger.info("/ask retrieval_result=hit | context_chars=%d", len(llm_context))
-    final_answer = generate_answer_with_prompt(payload.question, llm_context)
+    final_answer = generate_answer_with_prompt(question, llm_context)
     if is_fallback_like(final_answer):
         logger.warning("/ask llm_returned_fallback_like_despite_retrieval_hit | using_chunk_based_fallback")
-        return AskResponse(answer=fallback_answer_from_chunks(payload.question, top_chunks))
+        return AskResponse(answer=fallback_answer_from_chunks(question, top_chunks))
 
     logger.info("/ask final_answer_chars=%d", len(final_answer))
     return AskResponse(answer=final_answer)

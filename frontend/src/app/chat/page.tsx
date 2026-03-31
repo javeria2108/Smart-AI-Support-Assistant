@@ -2,9 +2,10 @@
 
 import { FormEvent, useState } from "react";
 import { askQuestion } from "@/lib/api";
-import Link from "next/link";
 import { Home, Upload, Send, MessageCircle } from "lucide-react";
 import LoadingSpinner from "@/components/ui/loading-spinner";
+import PageHeader from "@/components/ui/page-header";
+import StatusBanner from "@/components/ui/status-banner";
 
 type Message = {
   role: "user" | "assistant";
@@ -50,30 +51,15 @@ export default function ChatPage() {
   return (
     <main className="min-h-screen bg-zinc-950 text-zinc-100">
       <div className="mx-auto w-full max-w-4xl px-4 py-6 sm:px-6 sm:py-10">
-        <div className="mb-6 flex items-center justify-between">
-          <h1 className="text-2xl font-semibold text-green-400">
-            Chat Assistant
-          </h1>
-          <MessageCircle className="h-6 w-6 text-green-400/60" />
-        </div>
-
-        <div className="mb-6 flex flex-wrap gap-2">
-          <Link
-            href="/"
-            className="inline-flex items-center gap-2 rounded-md border border-zinc-700 px-3 py-2 text-sm transition-colors hover:border-green-500 hover:bg-zinc-900 hover:text-green-400"
-          >
-            <Home className="h-4 w-4" />
-            Home
-          </Link>
-          <Link
-            href="/ingest"
-            className="inline-flex items-center gap-2 rounded-md border border-zinc-700 px-3 py-2 text-sm transition-colors hover:border-green-500 hover:bg-zinc-900 hover:text-green-400"
-          >
-            <Upload className="h-4 w-4" />
-            Ingest
-          </Link>
-        </div>
-        <section className="mb-6 flex min-h-[420px] flex-col gap-3 rounded-lg border border-zinc-800 bg-zinc-900/50 p-5">
+        <PageHeader
+          title="Chat Assistant"
+          TitleIcon={MessageCircle}
+          navItems={[
+            { href: "/", label: "Home", icon: Home },
+            { href: "/ingest", label: "Ingest", icon: Upload },
+          ]}
+        />
+        <section className="mb-6 flex h-[55vh] min-h-[380px] flex-col gap-3 overflow-y-auto rounded-lg border border-zinc-800 bg-zinc-900/50 p-5 sm:min-h-[440px]">
           {messages.length === 0 ? (
             <p className="inline-flex items-center gap-2 text-sm text-zinc-400">
               <MessageCircle className="h-4 w-4" />
@@ -113,7 +99,7 @@ export default function ChatPage() {
           />
           <button
             type="submit"
-            disabled={isLoading}
+            disabled={isLoading || !question.trim()}
             className="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-green-500 px-6 font-medium text-zinc-950 transition-all hover:bg-green-400 hover:shadow-lg hover:shadow-green-500/20 disabled:opacity-60"
           >
             {isLoading ? (
@@ -131,9 +117,7 @@ export default function ChatPage() {
         </form>
 
         {error && (
-          <p className="mt-6 rounded-lg border border-red-700/50 bg-red-950/30 px-4 py-3 text-sm text-red-300">
-            {error}
-          </p>
+          <StatusBanner type="error" message={error} />
         )}
       </div>
     </main>

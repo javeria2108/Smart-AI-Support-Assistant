@@ -7,8 +7,12 @@ class IngestResponse(BaseModel):
 
 
 class AskRequest(BaseModel):
-    question: str = Field(..., min_length=1, description="User question")
+    question: str = Field(..., min_length=1, max_length=2000, description="User question")
 
 
 class AskResponse(BaseModel):
     answer: str
+
+
+class ErrorResponse(BaseModel):
+    detail: str

@@ -10,8 +10,8 @@ logger = logging.getLogger(__name__)
 def generate_answer_with_prompt(question: str, context_snippet: str) -> str:
     api_key = os.getenv("GEMINI_API_KEY")
     if not api_key:
-        logger.warning("GEMINI_API_KEY missing | returning retrieved snippet")
-        return context_snippet
+        logger.warning("GEMINI_API_KEY missing | returning fallback answer")
+        return FALLBACK_ANSWER
 
     client = genai.Client(api_key=api_key)
     model_name = os.getenv("GEMINI_MODEL", "gemini-3-flash-preview")
@@ -44,8 +44,8 @@ def generate_answer_with_prompt(question: str, context_snippet: str) -> str:
             config={"temperature": 0},
         )
     except Exception:
-        logger.exception("Gemini call failed | returning retrieved snippet")
-        return context_snippet
+        logger.exception("Gemini call failed | returning fallback answer")
+        return FALLBACK_ANSWER
 
     answer = (response.text or "").strip()
     if not answer:
